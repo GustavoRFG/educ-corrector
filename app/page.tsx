@@ -20,7 +20,7 @@ export default function Home() {
         </button>
         <button
           onClick={() => router.push('/respostas')}
-          className="px-6 py-3 bg-green-600 text-white rounded-xl shadow hover:bg-green-700 transition"
+          className="px-6 py-3 bg-yellow-600 text-white rounded-xl shadow hover:bg-yellow-700 transition"
         >
           🧾 Corrigir Respostas
         </button>

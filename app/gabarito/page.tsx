@@ -18,7 +18,7 @@ export default function GabaritoPage() {
 
     setStatus("Enviando...");
     try {
-      const response = await fetch("http://127.0.0.1:5000/upload", {
+      const response = await fetch("https://76c0-2804-1b2-11c0-72a5-28d6-5acf-885f-d568.ngrok-free.app/upload", {
         method: "POST",
         body: formData,
       });
