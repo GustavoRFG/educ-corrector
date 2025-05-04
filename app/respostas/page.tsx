@@ -23,8 +23,11 @@ export default function RespostasPage() {
       formData.append("tipo", "resposta");
 
       try {
-        const response = await fetch("https://76c0-2804-1b2-11c0-72a5-28d6-5acf-885f-d568.ngrok-free.app/upload", {
+        const response = await fetch("https://4d9d-2804-1b2-11c0-72a5-28d6-5acf-885f-d568.ngrok-free.app/upload", {
           method: "POST",
+          headers: {
+            "ngrok-skip-browser-warning": "1",
+          },
           body: formData,
         });
 

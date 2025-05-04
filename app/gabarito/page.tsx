@@ -18,12 +18,21 @@ export default function GabaritoPage() {
 
     setStatus("Enviando...");
     try {
-      const response = await fetch("https://76c0-2804-1b2-11c0-72a5-28d6-5acf-885f-d568.ngrok-free.app/upload", {
+      const response = await fetch("https://4d9d-2804-1b2-11c0-72a5-28d6-5acf-885f-d568.ngrok-free.app/upload", {
         method: "POST",
+        headers: {
+            "ngrok-skip-browser-warning": "1",
+          },
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Erro na requisição");
+      
+      if (!response.ok) {
+        // imprime código de status e texto bruto do corpo
+        const text = await response.text();
+        console.error("ngrok → upload erro", response.status, response.statusText, text);
+        throw new Error(`Erro na requisição: ${response.status}`);
+      }
 
       const data = await response.json();
       setRespostas(data.respostas);

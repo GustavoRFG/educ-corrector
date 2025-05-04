@@ -7,7 +7,7 @@ export default function Home() {
   const router = useRouter();
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-yellow-100 via-yellow-300 to-blue-600">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-yellow-100 via-yellow-200 to-blue-600">
       <h1 className="text-3xl font-bold mb-10">
 
       Sistema de Correção de Provas</h1>
