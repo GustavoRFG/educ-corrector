@@ -32,6 +32,8 @@ export default function RespostasPage() {
           body: formData,
         });
 
+        
+
         if (!response.ok) throw new Error("Erro na requisição");
 
         const data = await response.json();
@@ -245,7 +247,7 @@ export default function RespostasPage() {
         </button>
       </form>
       <p className="mt-4 text-sm text-gray-700">{status}</p>
-
+  
       {resultados.length > 0 && (
         <>
           {/* INÍCIO DO CONTAINER PARA PDF */}
@@ -259,7 +261,7 @@ export default function RespostasPage() {
               alt="Logo Colégio Exemplo"
               className="w-24 mx-auto mb-4"
             />
-
+  
             {/* Estatísticas */}
             {estatisticas && (
               <div className="mb-6 p-4 border bg-yellow-50 rounded">
@@ -271,69 +273,148 @@ export default function RespostasPage() {
                   Desvio padrão: <strong>{estatisticas.desvioPadrao.toFixed(2)}</strong>
                 </p>
                 <div className="mt-2">
-                <p className="font-semibold">Questões mais erradas:</p>
-                <ul className="list-disc list-inside">
-                  {Object.entries(estatisticas.errosPorQuestao)
-                    .sort((a: any, b: any) => b[1] - a[1])
-                    .slice(0, 5)
-                    .map(([num, count]: any) => (
-                      <li key={num}>Questão {num}: {count} erro(s)</li>
-                    ))}
-                </ul>
-              </div>
-              <div className="mt-2">
-                <p className="font-semibold">Questões mais acertadas:</p>
-                <ul className="list-disc list-inside">
-                  {Object.entries(estatisticas.acertosPorQuestao)
-                    .sort((a: any, b: any) => b[1] - a[1])
-                    .slice(0, 5)
-                    .map(([num, count]: any) => (
-                      <li key={num}>Questão {num}: {count} acerto(s)</li>
-                    ))}
-                </ul>
-              </div>
-            
+                  <p className="font-semibold">Questões mais erradas:</p>
+                  <ul className="list-disc list-inside">
+                    {Object.entries(estatisticas.errosPorQuestao)
+                      .sort((a: any, b: any) => (b[1] as number) - (a[1] as number))
+                      .slice(0, 5)
+                      .map(([num, count]: any) => (
+                        <li key={num}>Questão {num}: {count} erro(s)</li>
+                      ))}
+                  </ul>
+                </div>
+                <div className="mt-2">
+                  <p className="font-semibold">Questões mais acertadas:</p>
+                  <ul className="list-disc list-inside">
+                    {Object.entries(estatisticas.acertosPorQuestao)
+                      .sort((a: any, b: any) => (b[1] as number) - (a[1] as number))
+                      .slice(0, 5)
+                      .map(([num, count]: any) => (
+                        <li key={num}>Questão {num}: {count} acerto(s)</li>
+                      ))}
+                  </ul>
+                </div>
               </div>
             )}
-
+  
             {/* Resultados detalhados */}
             {resultados.map((res, idx) => (
-  <div key={idx} className="border p-4 rounded bg-gray-50">
-    <h3 className="text-lg font-semibold mb-2">{res.nomeArquivo}</h3>
-    {res.erro ? (
-      <p className="text-red-600">Erro ao processar este arquivo.</p>
-    ) : (
-      <div>
-        <p className="text-blue-700 mb-2">
-          Nota do aluno: <strong>{res.nota.toFixed(2)}</strong> / 10<br />
-          Acertos: <strong>{res.acertos}</strong> de <strong>{res.total}</strong>
-        </p>
-        <ul className="list-disc list-inside mt-2">
-          {Object.entries(res.respostas).map(([num, letra]: any) => {
-            const correta = res.gabarito?.[num] || '?';
-            const certa = letra === correta;
-            return (
-              <li key={num}>
-                Questão {num}: <strong>{letra}</strong>
-                {certa ? (
-                  <span className="text-green-600 ml-2">✔️</span>
+              <div key={res.id ?? idx} className="border p-4 rounded bg-gray-50">
+                <h3 className="text-lg font-semibold mb-2">{res.nomeArquivo}</h3>
+  
+                {res.erro ? (
+                  <p className="text-red-600">Erro ao processar este arquivo.</p>
+                ) : res.editing ? (
+                  /* ===== MODO DE EDIÇÃO ===== */
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.currentTarget);
+                      const novasRespostas: Record<string, string> = {};
+                      Object.keys(res.respostas).forEach(num => {
+                        novasRespostas[num] = formData.get(num) as string;
+                      });
+                      // envia ao backend
+                      const resp = await fetch('https://932f-2804-1b2-11c0-72a5-a140-2aaa-3644-5e45.ngrok-free.app/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: res.id, respostas: novasRespostas }),
+                      });
+                      const updated = await resp.json();
+                      // atualiza localmente
+                      setResultados(prev =>
+                        prev.map(r2 =>
+                          r2.id === res.id ? { ...r2, ...updated, editing: false } : r2
+                        )
+                      );
+                      // recalc estatísticas
+                      calcularEstatisticas(
+                        resultados.map(r2 =>
+                          r2.id === res.id ? { ...r2, ...updated } : r2
+                        )
+                      );
+                    }}
+                    className="space-y-4"
+                  >
+                    {Object.entries(res.respostas).map(([num, letra]: any) => (
+                      <div key={num} className="flex items-center space-x-2">
+                        <label htmlFor={num}>Questão {num}:</label>
+                        <select
+                          id={num}
+                          name={num}
+                          defaultValue={letra}
+                          className="border rounded px-2"
+                        >
+                          {['A','B','C','D','E'].map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                    <div className="flex space-x-2">
+                      <button
+                        type="submit"
+                        className="bg-blue-600 text-white px-4 py-1 rounded"
+                      >
+                        Confirmar Edição
+                      </button>
+                      <button
+                        type="button"
+                        className="bg-gray-300 text-gray-700 px-4 py-1 rounded"
+                        onClick={() =>
+                          setResultados(prev =>
+                            prev.map(r2 =>
+                              r2.id === res.id ? { ...r2, editing: false } : r2
+                            )
+                          )
+                        }
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
                 ) : (
-                  <span className="text-red-600 ml-2">
-                    ❌ (Correta: {correta})
-                  </span>
+                  /* ===== MODO DE VISUALIZAÇÃO ===== */
+                  <div>
+                    <p className="text-blue-700 mb-2">
+                      Nota do aluno: <strong>{res.nota.toFixed(2)}</strong> / 10<br />
+                      Acertos: <strong>{res.acertos}</strong> de <strong>{res.total}</strong>
+                    </p>
+                    <ul className="list-disc list-inside mt-2">
+                      {Object.entries(res.respostas).map(([num, letra]: any) => {
+                        const correta = res.gabarito?.[num] || '?';
+                        const certa = letra === correta;
+                        return (
+                          <li key={num} className="flex justify-between">
+                            <span>
+                              Questão {num}: <strong>{letra}</strong>
+                            </span>
+                            <span className={certa ? 'text-green-600' : 'text-red-600'}>
+                              {certa ? '✔️' : `❌ (Correta: ${correta})`}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <button
+                      onClick={() =>
+                        setResultados(prev =>
+                          prev.map(r2 =>
+                            r2.id === res.id ? { ...r2, editing: true } : r2
+                          )
+                        )
+                      }
+                      className="mt-2 text-sm text-blue-600 hover:underline"
+                    >
+                      ✎ Editar
+                    </button>
+                  </div>
                 )}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    )}
-  </div>
-))}
-
+              </div>
+            ))}
           </div>
           {/* FIM DO CONTAINER PARA PDF */}
-
+  
           {/* Botão para exportar, fora do container */}
           <button
             onClick={exportarPDF}
@@ -345,4 +426,4 @@ export default function RespostasPage() {
       )}
     </div>
   );
-}
+}  
