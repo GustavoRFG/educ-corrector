@@ -192,6 +192,31 @@ export default function RespostasPage() {
         y += 10;
       }
     });
+     // 9. Gráfico de comparação de notas (via QuickChart)
+  try {
+    const labels = resultados.map(r => r.nomeArquivo);
+    const data = resultados.map(r => r.nota);
+    const cfg = { type: 'bar', data: { labels, datasets: [{ label: 'Notas', data }] } };
+    const url = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(cfg))}&format=png&width=600&height=300`;
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const fr = new FileReader();
+    const chartUrl: string = await new Promise(resolve => {
+      fr.onloadend = () => resolve(fr.result as string);
+      fr.readAsDataURL(blob);
+    });
+    const imgW = pageW - 2 * margin;
+    const imgH = (300 / 600) * imgW;
+    if (y + imgH > pageH - margin) {
+      doc.addPage();
+      y = margin + 10;
+    }
+    doc.addImage(chartUrl, 'PNG', margin, y, imgW, imgH);
+    y += imgH + 20;
+  } catch (e) {
+    console.error('Erro ao gerar gráfico:', e);
+  }
+
     // footer
     doc.setFontSize(10);
     doc.setTextColor(150);
