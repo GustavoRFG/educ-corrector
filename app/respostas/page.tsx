@@ -243,32 +243,39 @@ export default function RespostasPage() {
 
             {/* Resultados detalhados */}
             {resultados.map((res, idx) => (
-              <div key={idx} className="border p-4 rounded bg-gray-50">
-                <h3 className="text-lg font-semibold mb-2">{res.nomeArquivo}</h3>
-                {res.erro ? (
-                  <p className="text-red-600">Erro ao processar este arquivo.</p>
+  <div key={idx} className="border p-4 rounded bg-gray-50">
+    <h3 className="text-lg font-semibold mb-2">{res.nomeArquivo}</h3>
+    {res.erro ? (
+      <p className="text-red-600">Erro ao processar este arquivo.</p>
+    ) : (
+      <div>
+        <p className="text-blue-700 mb-2">
+          Nota do aluno: <strong>{res.nota.toFixed(2)}</strong> / 10<br />
+          Acertos: <strong>{res.acertos}</strong> de <strong>{res.total}</strong>
+        </p>
+        <ul className="list-disc list-inside mt-2">
+          {Object.entries(res.respostas).map(([num, letra]: any) => {
+            const correta = res.gabarito?.[num] || '?';
+            const certa = letra === correta;
+            return (
+              <li key={num}>
+                Questão {num}: <strong>{letra}</strong>
+                {certa ? (
+                  <span className="text-green-600 ml-2">✔️</span>
                 ) : (
-                  <ul className="list-disc list-inside mt-2">
-                    {Object.entries(res.respostas).map(([num, letra]: any) => {
-                      const correta = res.gabarito?.[num] || '?';
-                      const certa = letra === correta;
-                      return (
-                        <li key={num}>
-                          Questão {num}: <strong>{letra}</strong>
-                          {certa ? (
-                            <span className="text-green-600 ml-2">✔️</span>
-                          ) : (
-                            <span className="text-red-600 ml-2">
-                              ❌ (Correta: {correta})
-                            </span>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <span className="text-red-600 ml-2">
+                    ❌ (Correta: {correta})
+                  </span>
                 )}
-              </div>
-            ))}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    )}
+  </div>
+))}
+
           </div>
           {/* FIM DO CONTAINER PARA PDF */}
 
