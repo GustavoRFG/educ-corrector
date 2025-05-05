@@ -44,7 +44,7 @@ export default function GabaritoPage() {
   };
 
   return (
-    <div className="p-6 max-w-xl mx-auto">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-yellow-100 via-yellow-200 to-blue-600">
       <h1 className="text-2xl font-bold mb-4">Adicionar Gabarito Oficial</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input

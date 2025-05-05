@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import jsPDF from "jspdf";
+import html2canvas from 'html2canvas'
 
 export default function RespostasPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -75,76 +76,102 @@ export default function RespostasPage() {
     setEstatisticas({ acertosPorQuestao, errosPorQuestao, media, desvioPadrao });
   };
 
-  const exportarPDF = () => {
-    const doc = new jsPDF();
-    let y = 10;
+  const exportarPDF = async () => {
+    setStatus('Gerando PDF...');
+    // Helper para converter logo em DataURL
+    const getImageDataUrl = (url: string): Promise<string> => {
+      return fetch(url)
+        .then(res => res.blob())
+        .then(blob => new Promise<string>(resolve => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        }));
+    };
 
-    resultados.forEach((res, idx) => {
-      doc.setFontSize(12);
-      doc.text(`${res.nomeArquivo}`, 10, y);
-      y += 6;
-      if (res.erro) {
-        doc.text("Erro ao processar este arquivo.", 10, y);
-        y += 10;
-        return;
-      }
+    // Carrega logo
+    const logoDataUrl = await getImageDataUrl('/logo.png');
 
-      doc.text(`Nota do aluno: ${res.nota.toFixed(2)} / 10`, 10, y);
-      y += 6;
-      doc.text(`Acertos: ${res.acertos} de ${res.total}`, 10, y);
-      y += 8;
+    // Inicializa PDF
+    const doc = new jsPDF('p', 'pt', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 20;
 
-      Object.entries(res.respostas).forEach(([num, letra]: any) => {
-        const correta = res.gabarito?.[num] || "?";
-        const certa = letra === correta;
-        const texto = `Questão ${num}: ${letra} ${certa ? "✔️" : `❌ (Correta: ${correta})`}`;
-        doc.text(texto, 10, y);
-        y += 6;
-        if (y > 280) {
-          doc.addPage();
-          y = 10;
-        }
-      });
+    // Adiciona logo centralizado
+    const logoSize = 50;
+    doc.addImage(logoDataUrl, 'PNG', pageWidth / 2 - logoSize / 2, y, logoSize, logoSize);
+    y += logoSize + 10;
 
-      y += 10;
-    });
+    // Título
+    doc.setFontSize(18);
+    doc.setTextColor(30, 58, 138); // azul escuro
+    y += 15;  // linha em branco adicional
+    doc.text('Corrição das Respostas dos Alunos', pageWidth / 2, y, { align: 'center' });
+    y += 25;
 
+    // Estatísticas
     if (estatisticas) {
-      doc.addPage();
-      doc.text("Análise Estatística", 10, 10);
-      doc.text(`Média das notas: ${estatisticas.media.toFixed(2)}`, 10, 20);
-      doc.text(`Desvio padrão: ${estatisticas.desvioPadrao.toFixed(2)}`, 10, 26);
-
-      let y2 = 36;
-      doc.text("Questões mais erradas:", 10, y2);
-      y2 += 6;
-      const sortedErros = (Object.entries(estatisticas.errosPorQuestao) as [string, number][])
-      .sort((a, b) => b[1] - a[1]);
-      sortedErros.forEach(([num, qtd]) => {
-        doc.text(`Questão ${num}: ${qtd} erro(s)`, 10, y2);
-        y2 += 6;
-      });
-
-      y2 += 6;
-      doc.text("Questões mais acertadas:", 10, y2);
-      y2 += 6;
-      const sortedAcertos = (Object.entries(estatisticas.acertosPorQuestao) as [string, number][])
-  .sort((a, b) => b[1] - a[1]);
-      sortedAcertos.forEach(([num, qtd]) => {
-        doc.text(`Questão ${num}: ${qtd} acerto(s)`, 10, y2);
-        y2 += 6;
-      });
+      // fundo amarelo claro
+      doc.setFillColor(254, 243, 199); // yellow-50
+      doc.rect(40, y - 5, pageWidth - 80, 50, 'F');
+      doc.setFontSize(14);
+      doc.setTextColor(30, 58, 138);
+      doc.text('Estatísticas da Turma', 50, y + 10);
+      doc.setFontSize(12);
+      doc.text(`Média: ${estatisticas.media.toFixed(2)}`, 50, y + 25);
+      doc.text(`Desvio padrão: ${estatisticas.desvioPadrao.toFixed(2)}`, 50, y + 40);
+      y += 60;
     }
 
-    doc.save("relatorio-correcoes.pdf");
+    // Resultados detalhados
+    doc.setFontSize(12);
+    resultados.forEach(res => {
+      if (y > doc.internal.pageSize.getHeight() - 50) {
+        doc.addPage();
+        y = 20;
+      }
+      // Cabeçalho do arquivo
+      doc.setTextColor(30, 58, 138);
+      doc.setFontSize(14);
+      doc.text(res.nomeArquivo, 40, y);
+      y += 18;
+      doc.setFontSize(12);
+      doc.setTextColor(0);
+      if (res.erro) {
+        doc.setTextColor(200, 0, 0);
+        doc.text('Erro ao processar este arquivo.', 50, y);
+        y += 20;
+      } else {
+        // nota e acertos
+        doc.text(`Nota: ${res.nota.toFixed(2)} / 10`, 50, y);
+        y += 15;
+        doc.text(`Acertos: ${res.acertos} de ${res.total}`, 50, y);
+        y += 15;
+        // cada questão
+        Object.entries(res.respostas).forEach(([num, letra]: any) => {
+          const correta = res.gabarito?.[num] || '?';
+          const certa = letra === correta;
+          doc.text(
+            `Questão ${num}: ${letra} ${certa ? ' (Certo)' : ` (Errado - gabarito: ${correta})`}`,
+            60,
+            y
+          );
+          y += 12;
+          if (y > doc.internal.pageSize.getHeight() - 50) {
+            doc.addPage();
+            y = 20;
+          }
+        });
+        y += 10;
+      }
+    });
+
+    doc.save('relatorio-correcoes.pdf');
+    setStatus('PDF gerado!');
   };
 
-
-
-
-
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-blue-400 via-yellow-200 to-yellow-600">
       <h1 className="text-2xl font-bold mb-4">Corrigir Respostas dos Alunos</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
@@ -153,10 +180,11 @@ export default function RespostasPage() {
           multiple
           onChange={(e) => setFiles(Array.from(e.target.files || []))}
           required
+          className="block w-full"
         />
         <button
           type="submit"
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-900"
         >
           Corrigir Provas
         </button>
@@ -164,20 +192,30 @@ export default function RespostasPage() {
       <p className="mt-4 text-sm text-gray-700">{status}</p>
 
       {resultados.length > 0 && (
-        <div className="mt-6 space-y-6">
-          <button
-            onClick={exportarPDF}
-            className="mb-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        <>
+          {/* INÍCIO DO CONTAINER PARA PDF */}
+          <div
+            id="respostas-container"
+            className="mt-6 space-y-6 p-6 bg-white rounded shadow"
           >
-            Exportar PDF
-          </button>
+            {/* Logo */}
+            <img
+              src="/logo.png"
+              alt="Logo Colégio Exemplo"
+              className="w-24 mx-auto mb-4"
+            />
 
-          {estatisticas && (
-            <div className="mb-6 p-4 border bg-yellow-50 rounded">
-              <h2 className="text-xl font-semibold mb-2">📊 Estatísticas da Turma</h2>
-              <p>Média das notas: <strong>{estatisticas.media.toFixed(2)}</strong></p>
-              <p>Desvio padrão: <strong>{estatisticas.desvioPadrao.toFixed(2)}</strong></p>
-              <div className="mt-2">
+            {/* Estatísticas */}
+            {estatisticas && (
+              <div className="mb-6 p-4 border bg-yellow-50 rounded">
+                <h2 className="text-xl font-semibold mb-2">📊 Estatísticas da Turma</h2>
+                <p>
+                  Média das notas: <strong>{estatisticas.media.toFixed(2)}</strong>
+                </p>
+                <p>
+                  Desvio padrão: <strong>{estatisticas.desvioPadrao.toFixed(2)}</strong>
+                </p>
+                <div className="mt-2">
                 <p className="font-semibold">Questões mais erradas:</p>
                 <ul className="list-disc list-inside">
                   {Object.entries(estatisticas.errosPorQuestao)
@@ -199,39 +237,49 @@ export default function RespostasPage() {
                     ))}
                 </ul>
               </div>
-            </div>
-          )}
+            
+              </div>
+            )}
 
-          {resultados.map((res, idx) => (
-            <div key={idx} className="border p-4 rounded bg-gray-50">
-              <h2 className="text-lg font-semibold mb-2">{res.nomeArquivo}</h2>
-              {res.erro ? (
-                <p className="text-red-600">Erro ao processar este arquivo.</p>
-              ) : (
-                <>
-                  <p className="text-blue-700">
-                    Nota do aluno: <strong>{res.nota.toFixed(2)}</strong> / 10<br />
-                    Acertos: <strong>{res.acertos}</strong> de <strong>{res.total}</strong>
-                  </p>
+            {/* Resultados detalhados */}
+            {resultados.map((res, idx) => (
+              <div key={idx} className="border p-4 rounded bg-gray-50">
+                <h3 className="text-lg font-semibold mb-2">{res.nomeArquivo}</h3>
+                {res.erro ? (
+                  <p className="text-red-600">Erro ao processar este arquivo.</p>
+                ) : (
                   <ul className="list-disc list-inside mt-2">
-                    {Object.entries(res.respostas).map(([num, letra]: any) => (
-                      <li key={num}>
-                        Questão {num}: <strong>{letra}</strong>
-                        {res.gabarito?.[num] && res.gabarito[num] === letra ? (
-                          <span className="text-green-600 ml-2">✔️</span>
-                        ) : (
-                          <span className="text-red-600 ml-2">
-                            ❌ (Correta: {res.gabarito?.[num] || "?"})
-                          </span>
-                        )}
-                      </li>
-                    ))}
+                    {Object.entries(res.respostas).map(([num, letra]: any) => {
+                      const correta = res.gabarito?.[num] || '?';
+                      const certa = letra === correta;
+                      return (
+                        <li key={num}>
+                          Questão {num}: <strong>{letra}</strong>
+                          {certa ? (
+                            <span className="text-green-600 ml-2">✔️</span>
+                          ) : (
+                            <span className="text-red-600 ml-2">
+                              ❌ (Correta: {correta})
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* FIM DO CONTAINER PARA PDF */}
+
+          {/* Botão para exportar, fora do container */}
+          <button
+            onClick={exportarPDF}
+            className="mt-4 mb-6 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Exportar PDF
+          </button>
+        </>
       )}
     </div>
   );
