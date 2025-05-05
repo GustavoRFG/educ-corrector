@@ -78,51 +78,78 @@ export default function RespostasPage() {
 
   const exportarPDF = async () => {
     setStatus('Gerando PDF...');
-    // Helper para converter logo em DataURL
-    const getImageDataUrl = (url: string): Promise<string> => {
-      return fetch(url)
-        .then(res => res.blob())
-        .then(blob => new Promise<string>(resolve => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        }));
-    };
+    const margin = 40;
+    const today = new Date().toLocaleDateString('pt-BR');
+    const turma = '__';  // ajustar conforme
+    const serie = '__ª';  // ajustar conforme
 
-    // Carrega logo
-    const logoDataUrl = await getImageDataUrl('/logo.png');
+    // converte logo
+    const logoResp = await fetch('/logo.png');
+    const logoBlob = await logoResp.blob();
+    const reader = new FileReader();
+    const logoDataUrl: string = await new Promise(resolve => {
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(logoBlob);
+    });
 
-    // Inicializa PDF
     const doc = new jsPDF('p', 'pt', 'a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    let y = 20;
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    let y = margin;
 
-    // Adiciona logo centralizado
-    const logoSize = 50;
-    doc.addImage(logoDataUrl, 'PNG', pageWidth / 2 - logoSize / 2, y, logoSize, logoSize);
-    y += logoSize + 10;
 
-    // Título
+    
+    // header ENEM-SOL
+    
+    doc.setFontSize(14);
+    doc.setTextColor(30, 58, 138);
+    doc.text('ENEM-SOL', margin, y);
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text(`Turma: ${turma}`, margin, y + 16);
+    doc.text(`Série: ${serie}`, margin + 120, y + 16);
+    doc.text(`Data: ${today}`, pageW - margin, y + 16, { align: 'right' });
+    y += 40;
+
+    // logo central
+    const logoSz = 50;
+    doc.addImage(logoDataUrl, 'PNG', pageW / 2 - logoSz / 2, y, logoSz, logoSz);
+    y += logoSz + 20;
+
+    // título
     doc.setFontSize(18);
-    doc.setTextColor(30, 58, 138); // azul escuro
-    y += 15;  // linha em branco adicional
-    doc.text('Corrição das Respostas dos Alunos', pageWidth / 2, y, { align: 'center' });
-    y += 25;
+    doc.setTextColor(30, 58, 138);
+    doc.text('Correção das Respostas dos Alunos', pageW / 2, y, { align: 'center' });
+    y += 30;
 
-    // Estatísticas
+    // estatísticas
     if (estatisticas) {
-      // fundo amarelo claro
-      doc.setFillColor(254, 243, 199); // yellow-50
-      doc.rect(40, y - 5, pageWidth - 80, 50, 'F');
-      doc.setFontSize(14);
-      doc.setTextColor(30, 58, 138);
-      doc.text('Estatísticas da Turma', 50, y + 10);
       doc.setFontSize(12);
-      doc.text(`Média: ${estatisticas.media.toFixed(2)}`, 50, y + 25);
-      doc.text(`Desvio padrão: ${estatisticas.desvioPadrao.toFixed(2)}`, 50, y + 40);
-      y += 60;
-    }
+      doc.setTextColor(0);
+      doc.text(`Média: ${estatisticas.media.toFixed(2)}`, margin, y);
+      y += 15;
+      doc.text(`Desvio padrão: ${estatisticas.desvioPadrao.toFixed(2)}`, margin, y);
+      y += 20;
 
+      // mais erros
+      const errosArr = Object.entries(estatisticas.errosPorQuestao) as [string, number][];
+      errosArr.sort((a, b) => b[1] - a[1]);
+      doc.setTextColor(30, 58, 138);
+      doc.text('Questões com mais erros:', margin, y);
+      errosArr.slice(0, 5).forEach(([num, cnt], i) => {
+        doc.text(` Questão${num}: ${cnt}`, margin + 140, y + i * 14);
+      });
+      y += Math.min(errosArr.length, 5) * 14 + 10;
+
+      // mais acertos
+      const acertosArr = Object.entries(estatisticas.acertosPorQuestao) as [string, number][];
+      acertosArr.sort((a, b) => b[1] - a[1]);
+      doc.text('Questões com mais acertos:', margin, y);
+      acertosArr.slice(0, 5).forEach(([num, cnt], i) => {
+        doc.text(`Questão${num}: ${cnt}`, margin + 160, y + i * 14);
+      });
+      y += Math.min(acertosArr.length, 5) * 14 + 20;
+    }
     // Resultados detalhados
     doc.setFontSize(12);
     resultados.forEach(res => {
@@ -165,7 +192,10 @@ export default function RespostasPage() {
         y += 10;
       }
     });
-
+    // footer
+    doc.setFontSize(10);
+    doc.setTextColor(150);
+    doc.text('Powered by Encrypta Tech', pageW / 2, pageH - margin / 2, { align: 'center' });
     doc.save('relatorio-correcoes.pdf');
     setStatus('PDF gerado!');
   };
