@@ -62,7 +62,11 @@ export default function RootLayout({
         </header>
 
         {/* Conteúdo principal */}
-        <main className="py-8">{children}</main>
+        <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-yellow-100 via-yellow-200 to-blue-600">
+        <div className="w-full max-w-4xl px-4">
+        {children}
+        </div>
+        </main>
 
         {/* Footer */}
         <footer className="bg-gradient-to-br from-yellow-200 via-yellow-500 to-blue-900 py-4 mt-12">
